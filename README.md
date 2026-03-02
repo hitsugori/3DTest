@@ -51,62 +51,21 @@ The binary will be located at `target/release/3DTest`
 ## Controls
 
 ### Keyboard
+- **S**: Settings Toggle
+- **D**: Toggle debug overlay
+- **H**: Show keyboard shortcuts help
+- **P**: Pause / Resume
 - **R**: Reset camera to default position
 - **F11**: Toggle fullscreen
-- **1-4**: Switch between shapes (Cube, Sphere, Pyramid, Torus)
-- **W**: Wireframe mode
-- **S**: Solid mode
-- **P**: Points mode
-- **G**: Toggle grid overlay
-- **A**: Toggle axes overlay
-- **H**: Show keyboard shortcuts help
-- **I**: Show info dialog
-- **D**: Toggle debug overlay
-- **E**: Export rotation to clipboard
+- **F5**: Screenshot
+- **Space**: Pause / Resume (just like **R**)
+- **ESC**: Close dialogs
+
 
 ### Mouse
 - **Left-click + drag**: Rotate object
 - **Right-click + drag**: Pan camera
 - **Scroll wheel**: Zoom in/out
-
-## Architecture
-
-### Module Structure
-
-#### `main.rs`
-- Application entry point
-- Event loop management
-- Backend selection and initialization
-- Error handling and panic hooks
-
-#### `renderer.rs`
-- Core rendering pipeline using wgpu
-- GPU resource management (buffers, textures, pipelines)
-- Shader compilation and management
-- Matrix transformations and lighting calculations
-- Supports multiple render modes (solid, wireframe, points)
-
-#### `mesh.rs`
-- Mesh generation algorithms
-- Primitive shapes: Cube, Sphere, Pyramid, Torus
-- Helper geometries: Grid, Axes
-- Normal visualization meshes
-- Vertex structure and buffer layout definitions
-
-#### `state.rs`
-- Application state management
-- Configuration enums (RenderMode, ProjectionMode, ShapeKind, BackendChoice)
-- Input handling state
-- Camera and lighting parameters
-- UI state management
-
-#### `ui.rs`
-- ImGUI interface using egui
-- Settings panel for runtime configuration
-- Performance graph and debug overlay
-- Keyboard help dialog
-- Theme management (light/dark)
-- Toast notifications
 
 ## Dependencies
 
