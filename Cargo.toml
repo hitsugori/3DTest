@@ -1,0 +1,33 @@
+# 3DTest — GPL-3.0-or-later
+# wgpu multi-backend 3D renderer by mikedev_
+[package]
+name        = "threedtest"
+version     = "1.3.0"
+edition     = "2021"
+authors     = ["hitsugori"]
+license     = "GPL-3.0-or-later"
+description = "graphics demo made with WGPU & rust"
+
+[[bin]]
+name = "3DTest"
+path = "src/main.rs"
+
+[dependencies]
+wgpu        = { version = "0.19", features = [] }
+winit       = { version = "0.29", features = [] }
+egui        = "0.27"
+egui-wgpu   = { version = "0.27", features = [] }
+egui-winit  = { version = "0.27", default-features = false}
+bytemuck    = { version = "1.14", features = ["derive"] }
+glam        = "0.25"
+image       = { version = "0.24", default-features = false, features = ["png"] }
+pollster    = "0.3"
+webbrowser  = "0.8"
+env_logger  = "0.11"
+log         = "0.4"
+chrono      = "0.4"
+rfd         = "0.14"
+
+[profile.release]
+opt-level = 3
+lto       = true
