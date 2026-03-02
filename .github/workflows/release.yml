@@ -25,15 +25,17 @@ jobs:
         with:
           targets: ${{ matrix.target }}
 
-      - name: Install dependencies for cross
+      - name: Install dependencies for cross-compilation
         run: |
-          if [[ "${{ matrix.target }}" == *"windows-gnu"* ]]; then
-            sudo apt-get update
-            sudo apt-get install -y mingw-w64
-          fi
+          sudo apt-get update
           if [[ "${{ matrix.target }}" == "aarch64-unknown-linux-musl" ]]; then
-            sudo apt-get update
-            sudo apt-get install -y musl-tools
+            sudo apt-get install -y musl-tools gcc-aarch64-linux-gnu
+            mkdir -p .cargo
+            echo '[target.aarch64-unknown-linux-musl]' > .cargo/config.toml
+            echo 'linker = "aarch64-linux-gnu-gcc"' >> .cargo/config.toml
+          fi
+          if [[ "${{ matrix.target }}" == *"windows-gnu"* ]]; then
+            sudo apt-get install -y mingw-w64
           fi
 
       - name: Build project
@@ -86,6 +88,6 @@ jobs:
           body: |
             3DTest Release ${{ github.ref_name }}
             
-            - Windows / Linux binaries
-            - x86_64 builds
+            - Linux binaries (x86_64, ARM64)
+            - Windows binary (x86_64)
           files: release/*
