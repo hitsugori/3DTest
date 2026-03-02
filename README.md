@@ -1,6 +1,6 @@
 # 3DTest v1.3.1
 
-A high-performance 3D graphics renderer built with Rust, wgpu, and egui. Features a multi-backend architecture supporting Vulkan, DirectX 12, Metal, OpenGL, and WebGPU.
+A high-performance 3D graphics renderer built with Rust, wgpu, and egui. Features a multi-backend architecture supporting Vulkan, DirectX 12 and OpenGL
 
 ## Features
 
@@ -9,7 +9,6 @@ A high-performance 3D graphics renderer built with Rust, wgpu, and egui. Feature
   - Vulkan (Linux, Windows)
   - DirectX 12 (Windows)
   - OpenGL (Cross-platform fallback)
-  - WebGPU (Browser, experimental)
 - **Multiple rendering modes**: Solid, Wireframe, and Point rendering
 - **3D Primitives**: Cube, Sphere, Pyramid, Torus
 - **Debugging visualization**: Grid, Axes, and Normal line rendering
