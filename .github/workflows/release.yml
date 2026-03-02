@@ -15,7 +15,7 @@ jobs:
           - x86_64-unknown-linux-musl
           - aarch64-unknown-linux-musl
           - x86_64-pc-windows-gnu
-          - aarch64-pc-windows-gnu
+          - aarch64-pc-windows-msvc  # changed from GNU to MSVC
 
     steps:
       - name: Checkout
@@ -36,6 +36,8 @@ jobs:
             sudo apt-get update
             sudo apt-get install -y musl-tools
           fi
+          # MSVC build runs on Ubuntu GitHub Actions runners via Rust's cross-compilation
+          # No extra packages needed for aarch64-pc-windows-msvc
 
       - name: Build project
         run: cargo build --release --target ${{ matrix.target }}
@@ -60,7 +62,7 @@ jobs:
               ARCH=x86_64
               EXT=.exe
               ;;
-            aarch64-pc-windows-gnu)
+            aarch64-pc-windows-msvc)
               OS=windows
               ARCH=aarch64
               EXT=.exe
