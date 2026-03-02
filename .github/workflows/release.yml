@@ -1,0 +1,97 @@
+name: Build & Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'  # trigger on tags like v1.3.1
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - x86_64-unknown-linux-musl
+          - aarch64-unknown-linux-musl
+          - x86_64-pc-windows-gnu
+          - aarch64-pc-windows-gnu
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Install dependencies for cross
+        run: |
+          if [[ "${{ matrix.target }}" == *"windows-gnu"* ]]; then
+            sudo apt-get update
+            sudo apt-get install -y mingw-w64
+          fi
+          if [[ "${{ matrix.target }}" == "aarch64-unknown-linux-musl" ]]; then
+            sudo apt-get update
+            sudo apt-get install -y musl-tools
+          fi
+
+      - name: Build project
+        run: cargo build --release --target ${{ matrix.target }}
+
+      - name: Prepare release artifact with friendly name
+        run: |
+          BIN_NAME=3DTest
+          VERSION=${GITHUB_REF#refs/tags/}
+          case "${{ matrix.target }}" in
+            x86_64-unknown-linux-musl)
+              OS=linux
+              ARCH=x86_64
+              EXT=""
+              ;;
+            aarch64-unknown-linux-musl)
+              OS=linux
+              ARCH=aarch64
+              EXT=""
+              ;;
+            x86_64-pc-windows-gnu)
+              OS=windows
+              ARCH=x86_64
+              EXT=.exe
+              ;;
+            aarch64-pc-windows-gnu)
+              OS=windows
+              ARCH=aarch64
+              EXT=.exe
+              ;;
+          esac
+          mkdir -p release
+          cp target/${{ matrix.target }}/release/${BIN_NAME}${EXT} release/${BIN_NAME}-${VERSION}-${OS}-${ARCH}${EXT}
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: 3DTest-${{ matrix.target }}
+          path: release/
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release/
+
+      - name: Create GitHub Release
+        uses: ncipollo/release-action@v1
+        with:
+          tag: ${{ github.ref_name }}
+          name: ${{ github.ref_name }}
+          body: |
+            3DTest Release ${{ github.ref_name }}
+            
+            - Windows / Linux binaries
+            - x86_64 and ARM64 builds
+          files: release/*
