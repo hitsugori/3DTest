@@ -93,4 +93,5 @@ jobs:
             
             - Linux binaries (x86_64, ARM64)
             - Windows binary (x86_64)
-          files: release/*
+          artifacts: release
+          skipIfReleaseExists: true
