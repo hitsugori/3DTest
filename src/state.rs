@@ -25,6 +25,11 @@ impl BackendChoice {
         }
     }
     pub fn to_wgpu_backends(self) -> wgpu::Backends {
+        // On wasm only WebGPU is available — ignore any desktop-backend variants.
+        #[cfg(target_arch = "wasm32")]
+        return wgpu::Backends::BROWSER_WEBGPU;
+
+        #[cfg(not(target_arch = "wasm32"))]
         match self {
             Self::Auto   => wgpu::Backends::all(),
             Self::Vulkan => wgpu::Backends::VULKAN,

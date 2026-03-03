@@ -7,6 +7,7 @@ use std::sync::Arc;
 use wgpu::util::DeviceExt;
 use bytemuck::{Pod, Zeroable};
 use glam::{Mat4, Vec3};
+#[cfg(not(target_arch = "wasm32"))]
 use chrono;
 
 use crate::state::{AppState, RenderMode, ProjectionMode, ShapeKind};
@@ -161,7 +162,9 @@ pub struct BareGpu {
 }
 
 impl BareGpu {
-    pub fn new(
+    /// Async constructor — works on both native (via pollster::block_on in main)
+    /// and wasm (via wasm_bindgen_futures::spawn_local in lib.rs).
+    pub async fn new(
         window: Arc<winit::window::Window>,
         choice: crate::state::BackendChoice,
     ) -> Result<Self, String> {
@@ -177,6 +180,22 @@ impl BareGpu {
         let surface = instance
             .create_surface(window)
             .map_err(|e| format!("Failed to create window surface: {e}"))?;
+
+        // On wasm enumerate_adapters() may return nothing — use request_adapter instead.
+        #[cfg(target_arch = "wasm32")]
+        let adapter = instance
+            .request_adapter(&wgpu::RequestAdapterOptions {
+                power_preference:       wgpu::PowerPreference::HighPerformance,
+                compatible_surface:     Some(&surface),
+                force_fallback_adapter: false,
+            })
+            .await
+            .ok_or_else(|| format!(
+                "No WebGPU adapter found. Make sure your browser supports WebGPU \
+                 (Chrome 113+, Edge 113+, Firefox Nightly with dom.webgpu.enabled)."
+            ))?;
+
+        #[cfg(not(target_arch = "wasm32"))]
         let adapter = instance
             .enumerate_adapters(choice.to_wgpu_backends())
             .into_iter()
@@ -187,7 +206,8 @@ impl BareGpu {
                 _                               => 0,
             })
             .ok_or_else(|| format!(
-                "No GPU adapter found for backend '{}'.                  Try a different backend or check your GPU drivers.",
+                "No GPU adapter found for backend '{}'. \
+                 Try a different backend or check your GPU drivers.",
                 choice.label()
             ))?;
 
@@ -201,14 +221,21 @@ impl BareGpu {
         if supports_polygon_line  { required_features |= wgpu::Features::POLYGON_MODE_LINE; }
         if supports_polygon_point { required_features |= wgpu::Features::POLYGON_MODE_POINT; }
 
-        
-        
+        // On wasm we target WebGPU directly — use the standard WebGPU default
+        // limits.  downlevel_webgl2_defaults().using_resolution(...) injects
+        // wgpu-internal names (e.g. maxInterStageShaderComponents) that
+        // Chrome's WebGPU requestDevice rejects with OperationError.
+        #[cfg(target_arch = "wasm32")]
+        let required_limits = wgpu::Limits::default();
+        #[cfg(not(target_arch = "wasm32"))]
+        let required_limits = wgpu::Limits::default();
+
         let desc = wgpu::DeviceDescriptor {
             label:             Some("bare_device"),
             required_features,
-            required_limits:   wgpu::Limits::default(),
+            required_limits,
         };
-        let (device, queue) = pollster::block_on(adapter.request_device(&desc, None))
+        let (device, queue) = adapter.request_device(&desc, None).await
             .map_err(|e| format!("Failed to create GPU device: {e}"))?;
 
         let surface_caps   = surface.get_capabilities(&adapter);
@@ -367,8 +394,9 @@ pub struct Renderer {
 impl Renderer {
     
     
-    pub fn new(window: Arc<winit::window::Window>, state: &AppState) -> Result<Self, String> {
-        let bare = BareGpu::new(window, state.backend_choice)?;
+    /// Async constructor — awaits BareGpu::new then calls from_bare_gpu.
+    pub async fn new(window: Arc<winit::window::Window>, state: &AppState) -> Result<Self, String> {
+        let bare = BareGpu::new(window, state.backend_choice).await?;
         Self::from_bare_gpu(bare, state)
     }
 
@@ -470,9 +498,10 @@ impl Renderer {
                 label:  Some("pipeline"),
                 layout: Some(&pipeline_layout),
                 vertex: wgpu::VertexState {
-                    module:      &shader,
-                    entry_point: "vs_main",
-                    buffers:     &[Vertex::desc()],
+                    module:              &shader,
+                    entry_point:         "vs_main",
+                    buffers:             &[Vertex::desc()],
+                    compilation_options: wgpu::PipelineCompilationOptions::default(),
                 },
                 primitive: wgpu::PrimitiveState {
                     topology,
@@ -490,8 +519,9 @@ impl Renderer {
                     alpha_to_coverage_enabled: false,
                 },
                 fragment: Some(wgpu::FragmentState {
-                    module:      &shader,
-                    entry_point: "fs_main",
+                    module:              &shader,
+                    entry_point:         "fs_main",
+                    compilation_options: wgpu::PipelineCompilationOptions::default(),
                     targets: &[Some(wgpu::ColorTargetState {
                         format: surface_format,
                         blend:  Some(wgpu::BlendState::ALPHA_BLENDING),
@@ -653,6 +683,7 @@ impl Renderer {
                 layout: Some(&pipeline_layout),
                 vertex: wgpu::VertexState {
                     module: &shader, entry_point: "vs_main", buffers: &[Vertex::desc()],
+                    compilation_options: wgpu::PipelineCompilationOptions::default(),
                 },
                 primitive: wgpu::PrimitiveState {
                     topology,
@@ -665,6 +696,7 @@ impl Renderer {
                 multisample:   wgpu::MultisampleState { count: ms, ..Default::default() },
                 fragment: Some(wgpu::FragmentState {
                     module: &shader, entry_point: "fs_main",
+                    compilation_options: wgpu::PipelineCompilationOptions::default(),
                     targets: &[Some(wgpu::ColorTargetState {
                         format: sf,
                         blend:  Some(wgpu::BlendState::ALPHA_BLENDING),
@@ -925,8 +957,11 @@ impl Renderer {
             self.egui_renderer.free_texture(id);
         }
 
-        
+        // Screenshots: desktop-only (web has no file system access)
+        #[cfg(not(target_arch = "wasm32"))]
         let screenshot_this_frame = state.screenshot_requested;
+        #[cfg(target_arch = "wasm32")]
+        let screenshot_this_frame = false;
         if screenshot_this_frame {
             let bpp = 4u32; 
             let align    = wgpu::COPY_BYTES_PER_ROW_ALIGNMENT;
@@ -1035,6 +1070,7 @@ impl Renderer {
 
     
 
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn try_finalize_screenshot(&mut self, state: &mut AppState) {
         if let Some((buf, padded_row, height)) = self.screenshot_buf.take() {
             let width = self.surface_config.width;

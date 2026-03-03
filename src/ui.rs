@@ -3,9 +3,24 @@
 // Copyright (C) 2026 mikedev_ <mike@mikeden.site>
 //
 // GPL-3.0-or-later — see COPYING or <https://www.gnu.org/licenses/>
+#[cfg(not(target_arch = "wasm32"))]
 use webbrowser;
+
 use egui::{Context, RichText, Color32, Slider, Ui, Vec2, Stroke, FontId};
 use crate::state::{AppState, BackendChoice, RenderMode, ProjectionMode, ShapeKind, Object3D};
+
+/// Platform-agnostic URL opener.
+fn open_url(url: &str) {
+    #[cfg(not(target_arch = "wasm32"))]
+    { let _ = webbrowser::open(url); }
+
+    #[cfg(target_arch = "wasm32")]
+    {
+        if let Some(win) = web_sys::window() {
+            let _ = win.open_with_url_and_target(url, "_blank");
+        }
+    }
+}
 pub fn draw(ctx: &Context, state: &mut AppState) {
     apply_theme(ctx, state.dark_theme);
 
@@ -111,7 +126,7 @@ fn draw_startup_dialog(ctx: &Context, state: &mut AppState) {
             ui.add_space(4.0);
             ui.separator();
             ui.add_space(4.0);
-            ui.label(RichText::new("3DTest  •  mikedev_  •  GPL-3.0-or-later  •  Version 1.3.1").small().color(Color32::GRAY));
+            ui.label(RichText::new("3DTest  •  mikedev_  •  GPL-3.0-or-later  •  Version 1.4.0").small().color(Color32::GRAY));
 
             
             if ui.input(|i| i.key_pressed(egui::Key::Enter)) {
@@ -351,9 +366,13 @@ fn draw_settings_panel(ctx: &Context, state: &mut AppState) {
 
                 section(ui, "💾  Actions", |ui| {
                     ui.horizontal(|ui| {
+                        #[cfg(not(target_arch = "wasm32"))]
                         if ui.button("📸 Screenshot").clicked() {
                             state.screenshot_requested = true;
                         }
+                        #[cfg(target_arch = "wasm32")]
+                        ui.add_enabled(false, egui::Button::new("📸 Screenshot"))
+                            .on_disabled_hover_text("Screenshots are not available in the web version");
                         if ui.button("📋 Export Rot").clicked() {
                             if let Some(obj) = state.selected_object() {
                                 state.export_rotation_text = Some(format!(
@@ -382,11 +401,13 @@ fn draw_fps_overlay(ctx: &Context, state: &AppState) {
         .fixed_pos([10.0, 10.0])
         .order(egui::Order::Foreground)
         .show(ctx, |ui| {
+            ui.set_min_width(110.0);
             egui::Frame::none()
                 .fill(Color32::from_black_alpha(140))
                 .rounding(6.0)
                 .inner_margin(egui::Margin::symmetric(8.0, 4.0))
                 .show(ui, |ui| {
+                    ui.set_min_width(94.0);
                     let fps_color = if state.fps >= 60 {
                         Color32::from_rgb(100, 220, 100)
                     } else if state.fps >= 30 {
@@ -394,12 +415,14 @@ fn draw_fps_overlay(ctx: &Context, state: &AppState) {
                     } else {
                         Color32::from_rgb(220, 80, 80)
                     };
-                    ui.label(RichText::new(format!("FPS: {}", state.fps))
-                        .color(fps_color)
-                        .font(FontId::monospace(14.0)));
-                    ui.label(RichText::new(format!("{:.2} ms", state.frame_time_ms))
-                        .color(Color32::LIGHT_GRAY)
-                        .font(FontId::monospace(12.0)));
+                    ui.horizontal(|ui| {
+                        ui.label(RichText::new(format!("FPS: {}", state.fps))
+                            .color(fps_color)
+                            .font(FontId::monospace(14.0)));
+                        ui.label(RichText::new(format!("{:.2}ms", state.frame_time_ms))
+                            .color(Color32::LIGHT_GRAY)
+                            .font(FontId::monospace(12.0)));
+                    });
 
                     if !state.show_settings {
                         ui.label(RichText::new("S: settings").small().color(Color32::GRAY));
@@ -551,7 +574,7 @@ fn draw_info_dialog(ctx: &Context, state: &mut AppState) {
                 ui.heading(RichText::new("3DTest").size(24.0).strong());
                 ui.label(RichText::new("wgpu multi-backend 3D renderer").color(Color32::LIGHT_GRAY));
                 ui.add_space(6.0);
-                ui.label(RichText::new("v1.3.1").color(Color32::LIGHT_GRAY));
+                ui.label(RichText::new("v1.4.0").color(Color32::LIGHT_GRAY));
                 ui.add_space(8.0);
                 ui.separator();
                 ui.add_space(6.0);
@@ -559,11 +582,11 @@ fn draw_info_dialog(ctx: &Context, state: &mut AppState) {
                 ui.add_space(4.0);
 
                 if ui.link("Discord: mikedev_  (click to open)").clicked() {
-                    let _ = webbrowser::open("https://discord.com");
+                    open_url("https://discord.com");
                 }
                 ui.add_space(2.0);
                 if ui.link("Github: https://github.com/hitsugori/3DTest").clicked() {
-                    let _ = webbrowser::open("https://github.com/hitsugori/3DTest");
+                    open_url("https://github.com/hitsugori/3DTest");
                 }
                 ui.add_space(2.0);
                 ui.label(RichText::new("Contact: mike@mikeden.site ").color(Color32::LIGHT_GRAY));
